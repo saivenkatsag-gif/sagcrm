@@ -514,9 +514,75 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
       <div class="fg"><label class="fl">Full Name <span class="req">*</span></label><input class="fi" id="f-name" placeholder="Ravi Kumar"/></div>
       <div class="fg"><label class="fl">Phone <span class="req">*</span></label><input class="fi" id="f-phone" placeholder="+91 98765 43210"/></div>
       <div class="fg"><label class="fl">Email <span style="color:var(--text3);font-size:9px">(Optional)</span></label><input class="fi" id="f-email" type="email" placeholder="ravi@company.com"/></div>
-      <div class="fg"><label class="fl">Address</label><input class="fi" id="f-address" placeholder="Full address"/></div>
+      <div class="fg"><label class="fl">Category <span class="req">*</span></label>
+        <select class="fi" id="f-category">
+          <option value="">Select Category…</option>
+          <option value="Drones">Drones</option>
+          <option value="Spares">Spares</option>
+          <option value="RPTO">RPTO</option>
+          <option value="B2B">B2B</option>
+          <option value="Loans">Loans</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">State <span class="req">*</span></label>
+        <select class="fi" id="f-state">
+          <option value="">Select State…</option>
+          <option value="Andhra Pradesh">Andhra Pradesh</option>
+          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+          <option value="Assam">Assam</option>
+          <option value="Bihar">Bihar</option>
+          <option value="Chhattisgarh">Chhattisgarh</option>
+          <option value="Goa">Goa</option>
+          <option value="Gujarat">Gujarat</option>
+          <option value="Haryana">Haryana</option>
+          <option value="Himachal Pradesh">Himachal Pradesh</option>
+          <option value="Jharkhand">Jharkhand</option>
+          <option value="Karnataka">Karnataka</option>
+          <option value="Kerala">Kerala</option>
+          <option value="Madhya Pradesh">Madhya Pradesh</option>
+          <option value="Maharashtra">Maharashtra</option>
+          <option value="Manipur">Manipur</option>
+          <option value="Meghalaya">Meghalaya</option>
+          <option value="Mizoram">Mizoram</option>
+          <option value="Nagaland">Nagaland</option>
+          <option value="Odisha">Odisha</option>
+          <option value="Punjab">Punjab</option>
+          <option value="Rajasthan">Rajasthan</option>
+          <option value="Sikkim">Sikkim</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Telangana">Telangana</option>
+          <option value="Tripura">Tripura</option>
+          <option value="Uttar Pradesh">Uttar Pradesh</option>
+          <option value="Uttarakhand">Uttarakhand</option>
+          <option value="West Bengal">West Bengal</option>
+          <option value="Jammu &amp; Kashmir">Jammu &amp; Kashmir</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Language Preference <span class="req">*</span></label>
+        <select class="fi" id="f-language">
+          <option value="">Select Language…</option>
+          <option value="Telugu">Telugu</option>
+          <option value="English">English</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Tamil">Tamil</option>
+          <option value="Kannada">Kannada</option>
+          <option value="Malayalam">Malayalam</option>
+        </select>
+      </div>
       <div class="fg"><label class="fl">Pincode</label><input class="fi" id="f-pincode" placeholder="600001" maxlength="6"/></div>
-      <div class="fg"><label class="fl">Product Interested In <span class="req">*</span></label><input class="fi" id="f-product" placeholder="e.g. CRM Suite"/></div>
+      <div class="fg full" style="grid-column:1/-1">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+            <label class="fl">Product Interested In <span class="req">*</span></label>
+            <input class="fi" id="f-product" placeholder="e.g. AG-365 Drone, Battery Pack, RPTO Training…"/>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;width:110px">
+            <label class="fl">Qty <span class="req">*</span></label>
+            <input class="fi" id="f-qty" type="number" placeholder="1" min="1" value="1"/>
+          </div>
+        </div>
+      </div>
+      <div class="fg full"><label class="fl">Address</label><textarea class="fi" id="f-address" placeholder="Door No., Street, Area, City…" style="min-height:56px;resize:vertical"></textarea></div>
       <div class="fg"><label class="fl">Branch <span class="req">*</span></label><select class="fi" id="f-branch"><option value="">Select Branch…</option></select></div>
       <div class="fg"><label class="fl">Lead Source <span class="req">*</span></label>
         <select class="fi" id="f-source">
@@ -531,12 +597,12 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
           <option value="Others">Others</option>
         </select>
       </div>
-      <div class="fg"><label class="fl">Status</label>
+      <div class="fg"><label class="fl">Status <span class="req">*</span></label>
         <select class="fi" id="f-status"><option>New</option><option>Contacted</option><option>Qualified</option><option>Proposal</option><option>Won</option><option>Lost</option></select>
       </div>
       <div class="fg"><label class="fl">Deal Value (₹)</label><input class="fi" id="f-value" type="number" placeholder="0" min="0"/></div>
       <div class="fg"><label class="fl">Expected Close Date</label><input class="fi" id="f-buydate" type="date"/></div>
-      <div class="fg"><label class="fl">Assign To</label><select class="fi" id="f-assignee"><option value="">Unassigned</option></select></div>
+      <div class="fg"><label class="fl">Assign To <span class="req">*</span></label><select class="fi" id="f-assignee"><option value="">Unassigned</option></select></div>
       <div class="form-section"><div class="form-section-title">Notes</div></div>
       <div class="fg full"><textarea class="fi" id="f-notes" placeholder="Important details, follow-up notes…"></textarea></div>
     </div>
@@ -640,7 +706,10 @@ const BGCOLOR = ['rgba(37,99,235,.1)','rgba(245,158,11,.1)','rgba(22,163,74,.1)'
 /* ── State ──────────────────────────────────────────────── */
 let leads=[], team=[], branches=[], reminders=[], pointsLog=[];
 let currentUser=null, editLeadId=null, editMemberId=null, reminderLeadId=null;
-let currentView='dashboard', statusFilter='all', searchQ='', branchFilter='all';
+let currentView='dashboard', statusFilter='all', searchQ='', branchFilter='all', categoryFilter='all', stateFilter='all', languageFilter='all';
+const CATEGORIES=['Drones','Spares','RPTO','B2B','Loans'];
+const STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Jammu & Kashmir'];
+const LANGUAGES=['Telugu','English','Hindi','Tamil','Kannada','Malayalam'];
 let pendingImport=[], chartReg={};
 let teamTab='members';
 let _pendingOTPEmail='', _currentOTP='', _otpExpiry=0;
@@ -1449,8 +1518,10 @@ function renderLeads(){
   if(searchQ)vl=vl.filter(l=>l.name.toLowerCase().includes(searchQ)||l.phone.includes(searchQ)||(l.email||'').toLowerCase().includes(searchQ)||(l.product||'').toLowerCase().includes(searchQ)||(l.branch||'').toLowerCase().includes(searchQ));
   if(statusFilter!=='all')vl=vl.filter(l=>l.status===statusFilter);
   if(branchFilter!=='all')vl=vl.filter(l=>l.branch===branchFilter);
+  if(categoryFilter!=='all')vl=vl.filter(l=>l.category===categoryFilter);
+  if(stateFilter!=='all')vl=vl.filter(l=>l.state===stateFilter);
+  if(languageFilter!=='all')vl=vl.filter(l=>l.language===languageFilter);
 
-  const branchChips=branches.map(b=>`<button class="filter-chip ${branchFilter===b?'active':''}" onclick="branchFilter='${b}';render()">${b}</button>`).join('');
 
   const rows=vl.map(l=>`
     <tr onclick="openDetail('${l.id}')">
@@ -1478,8 +1549,25 @@ function renderLeads(){
 </div>
 <div class="filters-bar" style="margin-bottom:14px">
   <span style="font-size:11px;color:var(--text3);font-weight:600">Branch:</span>
-  <button class="filter-chip ${branchFilter==='all'?'active':''}" onclick="branchFilter='all';render()">All</button>
-  ${branchChips}
+  <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="branchFilter=this.value;render()">
+    <option value="all" ${branchFilter==='all'?'selected':''}>All Branches</option>
+    ${branches.map(b=>`<option value="${b}" ${branchFilter===b?'selected':''}>${b}</option>`).join('')}
+  </select>
+  <span style="font-size:11px;color:var(--text3);font-weight:600">Category:</span>
+  <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="categoryFilter=this.value;render()">
+    <option value="all" ${categoryFilter==='all'?'selected':''}>All Categories</option>
+    ${CATEGORIES.map(c=>`<option value="${c}" ${categoryFilter===c?'selected':''}>${c}</option>`).join('')}
+  </select>
+  <span style="font-size:11px;color:var(--text3);font-weight:600">State:</span>
+  <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="stateFilter=this.value;render()">
+    <option value="all" ${stateFilter==='all'?'selected':''}>All States</option>
+    ${STATES.map(s=>`<option value="${s}" ${stateFilter===s?'selected':''}>${s}</option>`).join('')}
+  </select>
+  <span style="font-size:11px;color:var(--text3);font-weight:600">Language:</span>
+  <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="languageFilter=this.value;render()">
+    <option value="all" ${languageFilter==='all'?'selected':''}>All Languages</option>
+    ${LANGUAGES.map(l=>`<option value="${l}" ${languageFilter===l?'selected':''}>${l}</option>`).join('')}
+  </select>
 </div>
 <div class="section-hdr">
   <div class="section-title">${vl.length} lead${vl.length!==1?'s':''}</div>
@@ -1765,6 +1853,10 @@ function openAddLead(){
   editLeadId=null;
   $('lead-modal-title').textContent='Add New Lead';
   ['f-name','f-phone','f-email','f-address','f-pincode','f-product','f-notes'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  $('f-category').value='';
+  $('f-state').value='';
+  $('f-language').value='';
+  $('f-qty').value='1';
   $('f-source').value='Instagram';
   $('f-status').value='New';
   $('f-value').value='';
@@ -1793,7 +1885,7 @@ function openEditLead(id){
   $('f-status').value=l.status||'New';
   rebuildBranchDropdowns();
   rebuildAssigneeDropdown();
-  setTimeout(()=>{$('f-branch').value=l.branch||'';$('f-source').value=l.source||'Others';$('f-assignee').value=l.assignee||'';},50);
+  setTimeout(()=>{$('f-branch').value=l.branch||'';$('f-source').value=l.source||'Others';$('f-assignee').value=l.assignee||'';$('f-category').value=l.category||'';$('f-state').value=l.state||'';$('f-language').value=l.language||'';$('f-qty').value=l.qty||1;$('f-product').value=l.product||'';},50);
   openModal('lead-modal');
 }
 
@@ -1805,8 +1897,16 @@ async function saveLead(){
   if(!branch){toast('Please select a branch','#f59e0b');return;}
   const product=$('f-product').value.trim();
   if(!product){toast('Please enter product interested in','#f59e0b');return;}
+  const state=$('f-state').value;
+  if(!state){toast('Please select a state','#f59e0b');return;}
+  const language=$('f-language').value;
+  if(!language){toast('Please select a language preference','#f59e0b');return;}
+  const status=$('f-status').value;
+  if(!status){toast('Please select a status','#f59e0b');return;}
+  const assignee=$('f-assignee').value;
+  if(!assignee){toast('Please assign this lead to a team member','#f59e0b');return;}
 
-  const newStatus=$('f-status').value;
+  const newStatus=status;
   const newValue=Number($('f-value').value)||0;
 
   if(editLeadId){
@@ -1818,6 +1918,8 @@ async function saveLead(){
       name,phone,email:$('f-email').value.trim(),
       address:$('f-address').value.trim(),pincode:$('f-pincode').value.trim(),
       product,branch,source:$('f-source').value,
+      category:$('f-category').value,state:$('f-state').value,language:$('f-language').value,
+      qty:Number($('f-qty').value)||1,
       status:newStatus,value:newValue,
       buyDate:$('f-buydate').value,notes:$('f-notes').value.trim(),
       assignee:$('f-assignee').value
@@ -1838,6 +1940,8 @@ async function saveLead(){
       id:uid(),name,phone,email:$('f-email').value.trim(),
       address:$('f-address').value.trim(),pincode:$('f-pincode').value.trim(),
       product,branch,source:$('f-source').value,
+      category:$('f-category').value,state:$('f-state').value,language:$('f-language').value,
+      qty:Number($('f-qty').value)||1,
       status:newStatus,value:newValue,
       buyDate:$('f-buydate').value,notes:$('f-notes').value.trim(),
       assignee:$('f-assignee').value||currentUser.id,
