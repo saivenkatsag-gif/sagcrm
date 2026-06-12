@@ -341,7 +341,7 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
   #mob-menu-btn{display:flex!important}
   .topbar{padding:9px 13px;gap:7px}.topbar-title{font-size:14px}
   .main{flex:1;overflow:hidden;display:flex;flex-direction:column}
-  .content{flex:1;overflow-y:auto;padding:11px;padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+  .content{flex:1;overflow-y:auto;padding:11px;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
   .stats-grid{grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
   .stat-card{padding:12px}.stat-value{font-size:20px}
   .table-wrap{display:none}
@@ -1544,9 +1544,12 @@ function renderLeads(){
 
   return`
 <div class="filters-bar">
-  <div class="search-wrap"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg><input class="search-input" placeholder="Search leads…" value="${searchQ}" oninput="searchQ=this.value;render()"/></div>
-  ${STATUSES.map(s=>`<button class="filter-chip ${statusFilter===s?'active':''}" onclick="statusFilter='${s}';render()">${s}</button>`).join('')}
-  <button class="filter-chip ${statusFilter==='all'?'active':''}" onclick="statusFilter='all';render()">All</button>
+  <div class="search-wrap" style="flex:2;max-width:none"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg><input class="search-input" placeholder="Search leads…" value="${searchQ}" oninput="searchQ=this.value;render()"/></div>
+  <span style="font-size:11px;color:var(--text3);font-weight:600">Status:</span>
+  <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="statusFilter=this.value;render()">
+    <option value="all" ${statusFilter==='all'?'selected':''}>All Statuses</option>
+    ${STATUSES.map(s=>`<option value="${s}" ${statusFilter===s?'selected':''}>${s}</option>`).join('')}
+  </select>
 </div>
 <div class="filters-bar" style="margin-bottom:14px">
   <span style="font-size:11px;color:var(--text3);font-weight:600">Branch:</span>
