@@ -1552,26 +1552,26 @@ function renderLeads(){
   </select>
 </div>
 <div class="filters-bar" style="margin-bottom:14px">
-  <span style="font-size:11px;color:var(--text3);font-weight:600">Branch:</span>
+  <span style="display:flex;align-items:center;gap:7px;white-space:nowrap"><span style="font-size:11px;color:var(--text3);font-weight:600">Branch:</span>
   <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="branchFilter=this.value;render()">
     <option value="all" ${branchFilter==='all'?'selected':''}>All Branches</option>
     ${branches.map(b=>`<option value="${b}" ${branchFilter===b?'selected':''}>${b}</option>`).join('')}
-  </select>
-  <span style="font-size:11px;color:var(--text3);font-weight:600">Category:</span>
+  </select></span>
+  <span style="display:flex;align-items:center;gap:7px;white-space:nowrap"><span style="font-size:11px;color:var(--text3);font-weight:600">Category:</span>
   <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="categoryFilter=this.value;render()">
     <option value="all" ${categoryFilter==='all'?'selected':''}>All Categories</option>
     ${CATEGORIES.map(c=>`<option value="${c}" ${categoryFilter===c?'selected':''}>${c}</option>`).join('')}
-  </select>
-  <span style="font-size:11px;color:var(--text3);font-weight:600">State:</span>
+  </select></span>
+  <span style="display:flex;align-items:center;gap:7px;white-space:nowrap"><span style="font-size:11px;color:var(--text3);font-weight:600">State:</span>
   <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="stateFilter=this.value;render()">
     <option value="all" ${stateFilter==='all'?'selected':''}>All States</option>
     ${STATES.map(s=>`<option value="${s}" ${stateFilter===s?'selected':''}>${s}</option>`).join('')}
-  </select>
-  <span style="font-size:11px;color:var(--text3);font-weight:600">Language:</span>
+  </select></span>
+  <span style="display:flex;align-items:center;gap:7px;white-space:nowrap"><span style="font-size:11px;color:var(--text3);font-weight:600">Language:</span>
   <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="languageFilter=this.value;render()">
     <option value="all" ${languageFilter==='all'?'selected':''}>All Languages</option>
     ${LANGUAGES.map(l=>`<option value="${l}" ${languageFilter===l?'selected':''}>${l}</option>`).join('')}
-  </select>
+  </select></span>
 </div>
 <div class="section-hdr">
   <div class="section-title">${vl.length} lead${vl.length!==1?'s':''}</div>
