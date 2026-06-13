@@ -572,16 +572,11 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
       </div>
       <div class="fg"><label class="fl">Pincode</label><input class="fi" id="f-pincode" placeholder="600001" maxlength="6"/></div>
       <div class="fg full" style="grid-column:1/-1">
-        <div style="display:flex;gap:10px;align-items:flex-end">
-          <div style="display:flex;flex-direction:column;gap:5px;flex:1">
-            <label class="fl">Product Interested In <span class="req">*</span></label>
-            <input class="fi" id="f-product" placeholder="e.g. AG-365 Drone, Battery Pack, RPTO Training…"/>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:5px;width:110px">
-            <label class="fl">Qty <span class="req">*</span></label>
-            <input class="fi" id="f-qty" type="number" placeholder="1" min="1" value="1"/>
-          </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label class="fl" style="margin:0">Products Interested In <span class="req">*</span></label>
+          <button type="button" onclick="addProductRow()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px dashed var(--accent2);background:var(--accent-glow);color:var(--accent2);cursor:pointer;font-family:var(--font);font-weight:500">+ Add Product</button>
         </div>
+        <div id="f-products-list"></div>
       </div>
       <div class="fg full"><label class="fl">Address</label><textarea class="fi" id="f-address" placeholder="Door No., Street, Area, City…" style="min-height:56px;resize:vertical"></textarea></div>
       <div class="fg"><label class="fl">Branch <span class="req">*</span></label><select class="fi" id="f-branch"><option value="">Select Branch…</option></select></div>
@@ -707,13 +702,12 @@ let pendingImport=[], chartReg={};
 let teamTab='members';
 let _pendingOTPEmail='', _currentOTP='', _otpExpiry=0;
 
-/* ── localStorage helpers ───────────────────────────────── */
+/* ── Helpers ────────────────────────────────────────────── */
 function lsSaveTeam(){try{localStorage.setItem('lf_team',JSON.stringify(team));}catch(e){}}
 function lsLoadTeam(){try{const d=localStorage.getItem('lf_team');return d?JSON.parse(d):null;}catch(e){return null;}}
 function lsSaveLeads(){try{localStorage.setItem('lf_leads',JSON.stringify(leads));}catch(e){}}
 function lsLoadLeads(){try{const d=localStorage.getItem('lf_leads');return d?JSON.parse(d):null;}catch(e){return null;}}
 
-/* ── Helpers ────────────────────────────────────────────── */
 const $=id=>document.getElementById(id);
 const d0=(n=0)=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
 const fmtDate=s=>s?new Date(s).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—';
@@ -962,7 +956,7 @@ function dbToMember(r){
   return{
     id:r.id,name:r.name||'',email:r.email||'',phone:r.phone||'',
     role:r.role||'Sales Rep',branch:r.branch||'',target:r.target||0,
-    isSuperAdmin:r.is_super_admin||false
+    isSuperAdmin:r.is_super_admin||r.role==='Super Admin'||false
   };
 }
 function memberToDb(m){
@@ -1589,7 +1583,7 @@ function renderLeads(){
 </div>
 <div class="section-hdr">
   <div class="section-title">${vl.length} lead${vl.length!==1?'s':''}</div>
-  ${isAdmin(currentUser)?`<button class="btn btn-sm btn-primary" onclick="openAddLead()">+ Add Lead</button>`:''}
+  <button class="btn btn-sm btn-primary" onclick="openAddLead()">+ Add Lead</button>
 </div>
 <div class="panel table-wrap">
   <table class="leads-table">
@@ -1870,11 +1864,11 @@ function sendChatMsg(leadId){
 function openAddLead(){
   editLeadId=null;
   $('lead-modal-title').textContent='Add New Lead';
-  ['f-name','f-phone','f-email','f-address','f-pincode','f-product','f-notes'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  ['f-name','f-phone','f-email','f-address','f-pincode','f-notes'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  setProductRows([]);
   $('f-category').value='';
   $('f-state').value='';
   $('f-language').value='';
-  $('f-qty').value='1';
   $('f-source').value='Instagram';
   $('f-status').value='New';
   $('f-value').value='';
@@ -1896,16 +1890,64 @@ function openEditLead(id){
   $('f-email').value=l.email||'';
   $('f-address').value=l.address||'';
   $('f-pincode').value=l.pincode||'';
-  $('f-product').value=l.product||'';
+  setProductRows(typeof l.products==='string'?stringToProducts(l.products):Array.isArray(l.products)&&l.products.length?l.products:stringToProducts(l.product||''));
   $('f-notes').value=l.notes||'';
   $('f-value').value=l.value||'';
   $('f-buydate').value=l.buyDate||'';
   $('f-status').value=l.status||'New';
   rebuildBranchDropdowns();
   rebuildAssigneeDropdown();
-  setTimeout(()=>{$('f-branch').value=l.branch||'';$('f-source').value=l.source||'Others';$('f-assignee').value=l.assignee||'';$('f-category').value=l.category||'';$('f-state').value=l.state||'';$('f-language').value=l.language||'';$('f-qty').value=l.qty||1;$('f-product').value=l.product||'';},50);
+  setTimeout(()=>{$('f-branch').value=l.branch||'';$('f-source').value=l.source||'Others';$('f-assignee').value=l.assignee||'';$('f-category').value=l.category||'';$('f-state').value=l.state||'';$('f-language').value=l.language||'';},50);
   openModal('lead-modal');
 }
+
+/* ── Multi-product helpers ───────────────────────────────── */
+function addProductRow(name='', qty=1){
+  const list=document.getElementById('f-products-list');
+  if(!list)return;
+  const row=document.createElement('div');
+  row.className='product-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 80px 28px;gap:6px;align-items:center;margin-bottom:6px';
+  row.innerHTML=`
+    <input class="fi" style="margin:0" placeholder="e.g. AG-365 Drone, RPTO Training…" value="${name.replace(/"/g,'&quot;')}" />
+    <input class="fi" style="margin:0" type="number" min="1" placeholder="Qty" value="${qty}" />
+    <button type="button" onclick="this.closest('.product-row').remove();if(!document.getElementById('f-products-list').children.length)addProductRow();" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--red);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button>`;
+  list.appendChild(row);
+}
+
+function getProductRows(){
+  const list=document.getElementById('f-products-list');
+  if(!list)return[];
+  return Array.from(list.querySelectorAll('.product-row')).map(row=>{
+    const inputs=row.querySelectorAll('input');
+    return{name:(inputs[0]?.value||'').trim(),qty:Number(inputs[1]?.value)||1};
+  }).filter(p=>p.name);
+}
+
+function setProductRows(products){
+  const list=document.getElementById('f-products-list');
+  if(!list)return;
+  list.innerHTML='';
+  if(!products||!products.length){addProductRow();return;}
+  products.forEach(p=>addProductRow(p.name||p,p.qty||1));
+}
+
+function productsToString(products){
+  if(!products||!products.length)return'';
+  return products.map(p=>p.qty>1?p.name+' (x'+p.qty+')':p.name).join(', ');
+}
+
+function stringToProducts(str){
+  if(!str)return[{name:'',qty:1}];
+  // Parse "AG-365 Drone (x3), Battery Pack" format
+  return str.split(',').map(s=>{
+    s=s.trim();
+    const m=s.match(/^(.*?)\s*\((x|×)(\d+)\)$/i);
+    if(m)return{name:m[1].trim(),qty:Number(m[3])};
+    return{name:s,qty:1};
+  }).filter(p=>p.name);
+}
+
 
 async function saveLead(){
   const name=$('f-name').value.trim();
@@ -1913,8 +1955,9 @@ async function saveLead(){
   if(!name||!phone){toast('Name and phone are required','#f59e0b');return;}
   const branch=$('f-branch').value;
   if(!branch){toast('Please select a branch','#f59e0b');return;}
-  const product=$('f-product').value.trim();
-  if(!product){toast('Please enter product interested in','#f59e0b');return;}
+  const productRows=getProductRows();
+  if(!productRows.length){toast('Please add at least one product','#f59e0b');return;}
+  const product=productsToString(productRows);
   const state=$('f-state').value;
   if(!state){toast('Please select a state','#f59e0b');return;}
   const language=$('f-language').value;
@@ -1935,9 +1978,8 @@ async function saveLead(){
     Object.assign(l,{
       name,phone,email:$('f-email').value.trim(),
       address:$('f-address').value.trim(),pincode:$('f-pincode').value.trim(),
-      product,branch,source:$('f-source').value,
+      product,products:productRows,branch,source:$('f-source').value,
       category:$('f-category').value,state:$('f-state').value,language:$('f-language').value,
-      qty:Number($('f-qty').value)||1,
       status:newStatus,value:newValue,
       buyDate:$('f-buydate').value,notes:$('f-notes').value.trim(),
       assignee:$('f-assignee').value
@@ -1957,9 +1999,8 @@ async function saveLead(){
     const l={
       id:uid(),name,phone,email:$('f-email').value.trim(),
       address:$('f-address').value.trim(),pincode:$('f-pincode').value.trim(),
-      product,branch,source:$('f-source').value,
+      product,products:productRows,branch,source:$('f-source').value,
       category:$('f-category').value,state:$('f-state').value,language:$('f-language').value,
-      qty:Number($('f-qty').value)||1,
       status:newStatus,value:newValue,
       buyDate:$('f-buydate').value,notes:$('f-notes').value.trim(),
       assignee:$('f-assignee').value||currentUser.id,
@@ -2537,6 +2578,64 @@ document.addEventListener('click',e=>{
   const pp=$('pts-popup');const pw=$('pts-widget');
   if(pp&&pw&&!pw.contains(e.target))pp.classList.remove('open');
 });
+
+
+
+
+/* ── Back button handler — WebView / mobile / desktop ────── */
+(function(){
+  function pushBack(){
+    history.pushState({app:true},document.title,'');
+  }
+  pushBack();
+
+  function handleBack(){
+    /* Priority 1: mobile sidebar */
+    const ov=document.getElementById('mobile-sidebar-overlay');
+    if(ov&&ov.classList.contains('open')){if(typeof closeMobileSidebar==='function')closeMobileSidebar();pushBack();return true;}
+
+    /* Priority 2: open modal */
+    const modals=['lead-modal','member-modal','reminder-modal','import-confirm-modal'];
+    const openMod=modals.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains('open');});
+    if(openMod){closeModal(openMod);pushBack();return true;}
+
+    /* Priority 3: detail panel */
+    const dp=document.getElementById('detail-panel');
+    if(dp&&dp.classList.contains('open')){closeDetailPanel();pushBack();return true;}
+
+    /* Priority 4: dropdowns */
+    const pp=document.getElementById('pts-popup');
+    const dd=document.getElementById('reminder-dropdown');
+    if(pp&&pp.classList.contains('open')){pp.classList.remove('open');pushBack();return true;}
+    if(dd&&dd.classList.contains('open')){dd.classList.remove('open');pushBack();return true;}
+
+    /* Priority 5: OTP step → email step */
+    const otpStep=document.getElementById('login-step-otp');
+    if(otpStep&&otpStep.classList.contains('active')){if(typeof backToEmail==='function')backToEmail();pushBack();return true;}
+
+    /* Priority 6: sub-view → dashboard */
+    if(typeof currentView!=='undefined'&&currentView!=='dashboard'){setView('dashboard');pushBack();return true;}
+
+    /* Nothing to close — stay in app */
+    pushBack();
+    return false;
+  }
+
+  /* Browser back button (desktop + mobile browsers) */
+  window.addEventListener('popstate',function(){handleBack();});
+
+  /* WebIntoApp / AppMaker style bridge */
+  window.onBackPressed=function(){return handleBack();};
+
+  /* Alternative name some wrappers use */
+  window.handleBackButton=window.onBackPressed;
+
+  /* GoNative bridge */
+  window.gonative_back_pressed=window.onBackPressed;
+
+  /* Cordova / Capacitor style */
+  document.addEventListener('backbutton',function(e){e.preventDefault();handleBack();},false);
+})();
 
 /* ── Boot ────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded',function(){
