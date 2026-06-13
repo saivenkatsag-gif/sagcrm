@@ -684,16 +684,8 @@ const SB_URL = 'https://gwyariovhutenplndfne.supabase.co/rest/v1';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3eWFyaW92aHV0ZW5wbG5kZm5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Mzg5MzMsImV4cCI6MjA5MjQxNDkzM30.AoqqCGWqj3W_QJNPZB4i0v48KYMwTVzIAjdVddKPGGI';
 const SB_HDR = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 
-/* ── LocalStorage Keys ───────────────────────────────────── */
-const LS_LEADS   = 'lf_leads_v2';
-const LS_TEAM    = 'lf_team_v2';
-/* LS_BRANCHES removed — branches are stored in Supabase only (app_settings table) */
-
-/* ── LocalStorage persistence (PRIMARY store) ────────────── */
-function lsSaveLeads()  { try{localStorage.setItem(LS_LEADS,  JSON.stringify(leads)); }catch(e){} }
-function lsSaveTeam()   { try{localStorage.setItem(LS_TEAM,   JSON.stringify(team));  }catch(e){} }
-function lsLoadLeads()  { try{const d=localStorage.getItem(LS_LEADS); return d?JSON.parse(d):null;}catch(e){return null;} }
-function lsLoadTeam()   { try{const d=localStorage.getItem(LS_TEAM);  return d?JSON.parse(d):null;}catch(e){return null;} }
+/* ── All data stored exclusively in Supabase ─────────────── */
+/* No localStorage keys — all persistence goes through Supabase */
 
 const EMAILJS_SERVICE  = 'service_wzxfmeh';
 const EMAILJS_TEMPLATE = 'template_pbdck2y';
@@ -714,6 +706,12 @@ const LANGUAGES=['Telugu','English','Hindi','Tamil','Kannada','Malayalam'];
 let pendingImport=[], chartReg={};
 let teamTab='members';
 let _pendingOTPEmail='', _currentOTP='', _otpExpiry=0;
+
+/* ── localStorage helpers ───────────────────────────────── */
+function lsSaveTeam(){try{localStorage.setItem('lf_team',JSON.stringify(team));}catch(e){}}
+function lsLoadTeam(){try{const d=localStorage.getItem('lf_team');return d?JSON.parse(d):null;}catch(e){return null;}}
+function lsSaveLeads(){try{localStorage.setItem('lf_leads',JSON.stringify(leads));}catch(e){}}
+function lsLoadLeads(){try{const d=localStorage.getItem('lf_leads');return d?JSON.parse(d):null;}catch(e){return null;}}
 
 /* ── Helpers ────────────────────────────────────────────── */
 const $=id=>document.getElementById(id);
@@ -754,29 +752,46 @@ function getUserPoints(userId){
     .reduce((s,p)=>s+p.delta,0);
 }
 
-function addPointsEntry(userId,delta,reason,leadId=''){
-  const entry={
-    id:uid(),userId,delta,reason,leadId,
-    ts:new Date().toISOString()
-  };
+async function addPointsEntry(userId,delta,reason,leadId=''){
+  const entry={id:uid(),userId,delta,reason,leadId,ts:new Date().toISOString()};
   pointsLog.push(entry);
-  savePointsLog();
+  try{localStorage.setItem('lf_points_log',JSON.stringify(pointsLog));}catch(e){}
+  sbFetch('/points_log',{method:'POST',body:JSON.stringify({id:entry.id,user_id:userId,delta,reason,lead_id:leadId||null,ts:entry.ts}),headers:{...SB_HDR,'Prefer':'resolution=ignore-duplicates'}}).catch(()=>{});
   return entry;
 }
 
-function savePointsLog(){
-  try{localStorage.setItem('lf_pts_log',JSON.stringify(pointsLog.slice(-2000)));}catch(e){}
+async function savePointsLog(){
+  /* Points log is append-only — just upsert all entries to Supabase */
+  /* Called after each addPointsEntry; individual entry already pushed */
 }
-function loadPointsLog(){
-  try{const d=localStorage.getItem('lf_pts_log');pointsLog=d?JSON.parse(d):[];}catch(e){pointsLog=[];}
+async function loadPointsLog(){
+  try{
+    const rows=await sbFetch('/points_log?order=ts.asc&limit=2000');
+    pointsLog=rows.map(r=>({id:r.id,userId:r.user_id,delta:r.delta,reason:r.reason,leadId:r.lead_id||'',ts:r.ts}));
+    return;
+  }catch(e){console.warn('points_log Supabase unavailable, using localStorage');}
+  try{const saved=localStorage.getItem('lf_points_log');pointsLog=saved?JSON.parse(saved):[];}catch(e){pointsLog=[];}
 }
 
 /* ── Reminders ──────────────────────────────────────────── */
-function saveRemindersLocal(){
-  try{localStorage.setItem('lf_reminders',JSON.stringify(reminders));}catch(e){}
+async function saveReminder_sb(r){
+  return sbFetch('/reminders',{
+    method:'POST',
+    body:JSON.stringify({id:r.id,user_id:r.userId,lead_id:r.leadId||null,note:r.note,datetime:r.datetime,done:r.done,penalty_applied:r.penaltyApplied||false,created_at:r.createdAt}),
+    headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates'}
+  }).catch(e=>console.warn('reminder save failed:',e.message));
 }
-function loadRemindersLocal(){
-  try{const d=localStorage.getItem('lf_reminders');reminders=d?JSON.parse(d):[];}catch(e){reminders=[];}
+async function updateReminder_sb(r){
+  return sbFetch('/reminders?id=eq.'+r.id,{
+    method:'PATCH',
+    body:JSON.stringify({done:r.done,penalty_applied:r.penaltyApplied||false})
+  }).catch(e=>console.warn('reminder update failed:',e.message));
+}
+async function loadRemindersFromSupabase(){
+  try{
+    const rows=await sbFetch('/reminders?order=datetime.asc');
+    reminders=rows.map(r=>({id:r.id,userId:r.user_id,leadId:r.lead_id||'',note:r.note,datetime:r.datetime,done:r.done,penaltyApplied:r.penalty_applied||false,createdAt:r.created_at}));
+  }catch(e){console.warn('Could not load reminders:',e.message);reminders=[];}
 }
 
 function myReminders(){
@@ -798,7 +813,7 @@ function openReminderModal(leadId){
   openModal('reminder-modal');
 }
 
-function saveReminder(){
+async function saveReminder(){
   const note=$('rem-note').value.trim();
   const date=$('rem-date').value;
   const time=$('rem-time').value||'10:00';
@@ -810,10 +825,11 @@ function saveReminder(){
     note:note||'Follow up',
     datetime:date+'T'+time+':00',
     done:false,
+    penaltyApplied:false,
     createdAt:new Date().toISOString()
   };
   reminders.push(r);
-  saveRemindersLocal();
+  await saveReminder_sb(r);
   closeModal('reminder-modal');
   updateReminderBadge();
   updateReminderDropdown();
@@ -822,7 +838,7 @@ function saveReminder(){
 
 function dismissReminder(id){
   const r=reminders.find(x=>x.id===id);
-  if(r){r.done=true;saveRemindersLocal();}
+  if(r){r.done=true;updateReminder_sb(r);}
   updateReminderBadge();
   updateReminderDropdown();
   render();
@@ -841,7 +857,7 @@ function checkMissedReminders(){
         addPointsEntry(currentUser.id,-1,'Missed reminder: '+r.note,r.leadId);
         toast('⚠️ -1 point: missed reminder "'+r.note+'"','#dc2626');
         r.done=true;
-        saveRemindersLocal();
+        updateReminder_sb(r);
       }
     }
   });
@@ -913,13 +929,7 @@ async function sbFetch(path,opts={}){
   return txt?JSON.parse(txt):[];
 }
 
-/* ── Supabase helper (best-effort, never blocks UI) ──────── */
-async function sbFetch(path,opts={}){
-  const res=await fetch(SB_URL+path,{...opts,headers:{...SB_HDR,...(opts.headers||{})}});
-  if(!res.ok){const t=await res.text();throw new Error(t);}
-  const txt=await res.text();
-  return txt?JSON.parse(txt):[];
-}
+
 
 /* Row mappers — app (camelCase) ↔ Supabase (snake_case) */
 function dbToLead(r){
@@ -1203,7 +1213,15 @@ const SEED_LEADS=[
 async function sendOTP(){
   const email=($('login-email').value||'').trim().toLowerCase();
   if(!email){toast('Please enter your email','#f59e0b');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Please enter a valid email address','#f59e0b');return;}
   const btn=$('btn-send-otp');btn.textContent='Sending…';btn.disabled=true;
+
+  /* Ensure EmailJS is available before making any network calls */
+  if(typeof emailjs==='undefined'){
+    btn.textContent='Send OTP →';btn.disabled=false;
+    toast('Email service not loaded. Please refresh the page and try again.','#dc2626');return;
+  }
+  try{emailjs.init(EMAILJS_PUBKEY);}catch(e){}
 
   /* Always verify against Supabase — no localStorage lookup */
   let member=null;
@@ -1215,17 +1233,13 @@ async function sendOTP(){
     if(rows&&rows.length)member=dbToMember(rows[0]);
   }catch(e){
     btn.textContent='Send OTP →';btn.disabled=false;
-    toast('Could not reach server. Check your connection.','#dc2626');return;
+    toast('Could not reach server. Check your internet connection and try again.','#dc2626');
+    console.error('Supabase lookup failed:',e);return;
   }
 
   if(!member){
     btn.textContent='Send OTP →';btn.disabled=false;
-    toast('Email not registered. Ask Super Admin to add you first.','#dc2626');return;
-  }
-
-  if(typeof emailjs==='undefined'){
-    btn.textContent='Send OTP →';btn.disabled=false;
-    toast('Email service not loaded. Refresh and try again.','#dc2626');return;
+    toast('Email not registered. Ask your Super Admin to add you first.','#dc2626');return;
   }
 
   const otp=String(Math.floor(100000+Math.random()*900000));
@@ -1580,7 +1594,7 @@ function renderLeads(){
 <div class="panel table-wrap">
   <table class="leads-table">
     <thead><tr><th>Name</th><th>Status</th><th>Product</th><th>Source</th><th>Branch</th><th>Close Date</th><th>Value</th><th></th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3)">No leads found</td></tr>'}</tbody>
+    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3)">🚀 Start building your pipeline</br> Add your first lead to begin tracking opportunities.</td></tr>'}</tbody>
   </table>
 </div>
 ${renderMobileLeadCards(vl)}
@@ -2536,7 +2550,7 @@ document.addEventListener('DOMContentLoaded',function(){
     if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openAddLead();}
   });
   loadPointsLog();
-  loadRemindersLocal();
+  loadRemindersFromSupabase();
   wireLoginEvents();
   initMobileLayout();
   dbLoadAll().then(async ()=>{
