@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f0f2f8;--bg2:#ffffff;--bg3:#f7f8fc;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
@@ -210,6 +211,14 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
 .chat-compose .fi{font-size:12px;padding:7px 10px}
 .chat-compose button{padding:7px 10px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:11px;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s}
 .chat-compose button:hover{background:var(--accent2)}
+/* ── WhatsApp ─────────────────────────────────── */
+.btn-wa{background:#dcfce7;color:#15803d;border-color:rgba(21,128,61,.25);font-weight:600}
+.btn-wa:hover{background:#bbf7d0;border-color:rgba(21,128,61,.4)}
+.wa-templates{display:none;margin-top:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px;gap:6px;flex-direction:column}
+.wa-templates.open{display:flex}
+.wa-tpl-btn{padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11.5px;font-family:var(--font);cursor:pointer;text-align:left;line-height:1.4;transition:all .12s}
+.wa-tpl-btn:hover{border-color:rgba(21,128,61,.4);background:#dcfce7;color:#15803d}
+.wa-tpl-label{font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;padding:0 2px}
 /* ── TIMELINE ────────────────────────────────── */
 .timeline-item{display:flex;gap:9px;margin-bottom:9px}
 .tl-dot-wrap{display:flex;flex-direction:column;align-items:center}
@@ -678,6 +687,32 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
 const SB_URL = 'https://gwyariovhutenplndfne.supabase.co/rest/v1';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3eWFyaW92aHV0ZW5wbG5kZm5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Mzg5MzMsImV4cCI6MjA5MjQxNDkzM30.AoqqCGWqj3W_QJNPZB4i0v48KYMwTVzIAjdVddKPGGI';
 const SB_HDR = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+const sb = window.supabase.createClient('https://gwyariovhutenplndfne.supabase.co', SB_KEY);
+let _realtimeSubscribed=false;
+function subscribeRealtimeLeads(){
+  if(_realtimeSubscribed)return;
+  _realtimeSubscribed=true;
+  sb.channel('leads-realtime')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'leads'}, payload=>{
+      const lead=dbToLead(payload.new);
+      if(!leads.find(l=>l.id===lead.id)){
+        leads.unshift(lead);
+        lsSaveLeads();
+        if(lead.source==='WhatsApp'){
+          toast('New lead from WhatsApp: '+lead.name,'#22c87a');
+        }
+        render();
+      }
+    })
+    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'leads'}, payload=>{
+      const lead=dbToLead(payload.new);
+      const idx=leads.findIndex(l=>l.id===lead.id);
+      if(idx>=0){leads[idx]=lead; lsSaveLeads();
+        if(currentView==='leads'||currentView==='dashboard')render();
+      }
+    })
+    .subscribe();
+}
 
 /* ── All data stored exclusively in Supabase ─────────────── */
 /* No localStorage keys — all persistence goes through Supabase */
@@ -1299,6 +1334,7 @@ async function verifyOTP(){
   $('login-screen').classList.add('hidden');
   $('app').style.display='flex';
   updateSidebarUser();render();checkMissedReminders();
+  subscribeRealtimeLeads();
   setInterval(checkMissedReminders,5*60*1000);
   initMobileLayout();
   toast('Welcome, '+member.name+'! 👋','#22c87a');
@@ -1584,6 +1620,7 @@ function renderLeads(){
 <div class="section-hdr">
   <div class="section-title">${vl.length} lead${vl.length!==1?'s':''}</div>
   <button class="btn btn-sm btn-primary" onclick="openAddLead()">+ Add Lead</button>
+  <button class="btn btn-sm" style="background:#22c87a;color:#fff" onclick="simulateWhatsAppLead()" title="Demo: simulate an incoming WhatsApp message creating a lead">📲 Simulate WhatsApp Lead</button>
 </div>
 <div class="panel table-wrap">
   <table class="leads-table">
@@ -1712,13 +1749,40 @@ function buildDetailHTML(l){
     </div>
     <div class="chat-area">${chatHTML||'<div style="text-align:center;color:var(--text3);font-size:11px;padding:8px">No communications yet</div>'}</div>
 
-    <div style="margin-bottom:8px">
+    <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <a href="tel:${l.phone||''}" onclick="autoLogCall('${l.id}')"
-         class="btn btn-sm" style="margin-right:6px;text-decoration:none;color:inherit"
+         class="btn btn-sm" style="text-decoration:none;color:inherit"
          ${!l.phone?'style="pointer-events:none;opacity:.4"':''}>
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 1.5c-.5 0-1 .5-1 1s.5 3 4 5.5S11.5 11.5 12 11.5s1-.5 1-1l.5-2.5L11 6.5l-1.5 2S8 8 7 7S5.5 5 5.5 5l2-1.5L6 1.5H2.5z"/></svg>Call Now
       </a>
       <button class="btn btn-sm btn-success" onclick="logChatFrom('${l.id}')">💬 Log Chat</button>
+      ${l.phone
+        ? `<a href="https://wa.me/${waNum(l.phone)}" target="_blank" rel="noopener"
+              class="btn btn-sm btn-wa" title="Open WhatsApp chat">
+             <svg width="13" height="13" viewBox="0 0 32 32" fill="currentColor"><path d="M16 .4C7.4.4.4 7.4.4 16c0 2.8.7 5.5 2.1 7.9L.4 31.6l8-2c2.3 1.3 4.9 2 7.6 2 8.6 0 15.6-7 15.6-15.6S24.6.4 16 .4zm0 28.5c-2.5 0-4.9-.7-7-1.9l-.5-.3-5.1 1.3 1.4-4.9-.3-.5C3.2 20.9 2.7 18.5 2.7 16 2.7 8.7 8.7 2.7 16 2.7S29.3 8.7 29.3 16 23.3 28.9 16 28.9zm8.4-10.4c-.5-.2-2.7-1.3-3.1-1.4-.4-.2-.7-.2-1 .2-.3.5-1.1 1.4-1.4 1.7-.3.3-.5.3-1 .1-.5-.2-2-.7-3.8-2.4-1.4-1.2-2.3-2.8-2.6-3.2-.3-.5 0-.7.2-.9l.7-.8c.2-.3.3-.5.4-.8.1-.3 0-.6-.1-.8-.2-.2-1-2.5-1.4-3.4-.4-.9-.7-.7-1-.7h-.8c-.3 0-.7.1-1.1.5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 1 .4 1.7.6 2.3.8.9.3 1.8.3 2.5.2.8-.1 2.4-.9 2.7-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.9-.5z"/></svg>
+             WhatsApp
+           </a>
+          <button class="btn btn-sm btn-wa" style="border-left:none;border-radius:0 7px 7px 0;margin-left:-7px;padding:5px 8px" onclick="toggleWaTemplates('${l.id}')" title="Send a template">▾</button>`
+        : `<button class="btn btn-sm btn-wa" style="opacity:.4;pointer-events:none">
+             <svg width="13" height="13" viewBox="0 0 32 32" fill="currentColor"><path d="M16 .4C7.4.4.4 7.4.4 16c0 2.8.7 5.5 2.1 7.9L.4 31.6l8-2c2.3 1.3 4.9 2 7.6 2 8.6 0 15.6-7 15.6-15.6S24.6.4 16 .4zm0 28.5c-2.5 0-4.9-.7-7-1.9l-.5-.3-5.1 1.3 1.4-4.9-.3-.5C3.2 20.9 2.7 18.5 2.7 16 2.7 8.7 8.7 2.7 16 2.7S29.3 8.7 29.3 16 23.3 28.9 16 28.9zm8.4-10.4c-.5-.2-2.7-1.3-3.1-1.4-.4-.2-.7-.2-1 .2-.3.5-1.1 1.4-1.4 1.7-.3.3-.5.3-1 .1-.5-.2-2-.7-3.8-2.4-1.4-1.2-2.3-2.8-2.6-3.2-.3-.5 0-.7.2-.9l.7-.8c.2-.3.3-.5.4-.8.1-.3 0-.6-.1-.8-.2-.2-1-2.5-1.4-3.4-.4-.9-.7-.7-1-.7h-.8c-.3 0-.7.1-1.1.5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 1 .4 1.7.6 2.3.8.9.3 1.8.3 2.5.2.8-.1 2.4-.9 2.7-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.9-.5z"/></svg>
+             WhatsApp
+           </button>`
+      }
+    </div>
+    <div class="wa-templates" id="wa-tpl-${l.id}">
+      <div class="wa-tpl-label">Send Template</div>
+      <button class="wa-tpl-btn" onclick="sendWaTemplate('${l.id}','new_lead')">
+        <div style="font-weight:600;margin-bottom:2px">🙏 New Lead</div>
+        <div style="color:var(--text3);font-size:10.5px">Thank you for contacting SAG. We will reach out to you shortly.</div>
+      </button>
+      <button class="wa-tpl-btn" onclick="sendWaTemplate('${l.id}','reminder')">
+        <div style="font-weight:600;margin-bottom:2px">📅 Demo Reminder</div>
+        <div style="color:var(--text3);font-size:10.5px">Your demo is scheduled for tomorrow. Please be available.</div>
+      </button>
+      <button class="wa-tpl-btn" onclick="sendWaTemplate('${l.id}','quotation')">
+        <div style="font-weight:600;margin-bottom:2px">📄 Quotation</div>
+        <div style="color:var(--text3);font-size:10.5px">Please find the attached quotation for your reference.</div>
+      </button>
     </div>
 
     <div class="chat-compose" id="chat-compose-${l.id}" style="display:none">
@@ -1847,6 +1911,41 @@ function _resetCallState(){
   _callHandled = false;
 }
 
+/* ── WhatsApp helpers ────────────────────────────────────── */
+function waNum(phone){
+  /* Strip everything except digits; prepend 91 if no country code */
+  const digits=(phone||'').replace(/\D/g,'');
+  if(digits.startsWith('91')&&digits.length>=12)return digits;
+  return '91'+digits;
+}
+
+function toggleWaTemplates(leadId){
+  const tpl=document.getElementById('wa-tpl-'+leadId);
+  if(tpl)tpl.classList.toggle('open');
+}
+
+const WA_TEMPLATES={
+  new_lead:'Thank you for contacting SAG Drone Technologies! 🙏\n\nWe have received your enquiry and our team will get in touch with you shortly.\n\nFor urgent queries, feel free to reply here.',
+  reminder:'Hi! 👋 This is a reminder that your demo with SAG Drone Technologies is scheduled for *tomorrow*.\n\nPlease keep some time free. Looking forward to speaking with you!',
+  quotation:'Hi! Please find the quotation attached for your reference. 📄\n\nKindly review and let us know if you have any questions. We are happy to customise as per your needs.\n\n— SAG Drone Technologies'
+};
+
+function sendWaTemplate(leadId,tplKey){
+  const lead=leads.find(l=>l.id===leadId);
+  if(!lead||!lead.phone)return;
+  const msg=WA_TEMPLATES[tplKey]||'';
+  const url='https://wa.me/'+waNum(lead.phone)+'?text='+encodeURIComponent(msg);
+  window.open(url,'_blank','noopener');
+  /* Log it in the communication log */
+  const labels={new_lead:'New Lead template',reminder:'Demo Reminder template',quotation:'Quotation template'};
+  addChatMessage(leadId,'chat','📲 WhatsApp sent: '+labels[tplKey]);
+  /* Close templates panel */
+  const tpl=document.getElementById('wa-tpl-'+leadId);
+  if(tpl)tpl.classList.remove('open');
+  /* Refresh detail panel */
+  setTimeout(()=>openDetail(leadId),300);
+}
+
 function logChatFrom(leadId){
   const cc=$('chat-compose-'+leadId);
   if(cc)cc.style.display=cc.style.display==='none'?'flex':'none';
@@ -1858,6 +1957,64 @@ function sendChatMsg(leadId){
   if(!msg){toast('Enter a message','#f59e0b');return;}
   addChatMessage(leadId,'chat',msg);
   openDetail(leadId);
+}
+
+/* ── Auto Lead Creation from WhatsApp ──────────────────────
+   Call createLeadFromWhatsApp(phone, message, name) whenever an
+   inbound WhatsApp message arrives (e.g. from a webhook bridge).
+   Creates a new lead automatically: Source = WhatsApp, Status = New.
+   If a lead with this phone already exists, it just logs the
+   message into that lead's chat instead of duplicating. ───────── */
+function createLeadFromWhatsApp(phone, message, name){
+  phone=(phone||'').trim();
+  message=(message||'').trim();
+  if(!phone)return null;
+
+  const existing=leads.find(l=>l.phone&&l.phone.replace(/\D/g,'')===phone.replace(/\D/g,''));
+  if(existing){
+    addChatMessage(existing.id,'in',message||'New WhatsApp message');
+    toast('New WhatsApp message from '+existing.name,'#2563eb');
+    return existing;
+  }
+
+  const lead={
+    id:uid(),
+    name:name||('WhatsApp Lead '+phone.slice(-4)),
+    email:'',
+    phone,
+    address:'',
+    pincode:'',
+    product:'',products:[],
+    branch:branches[0]||'',
+    category:'',
+    state:'',
+    language:'',
+    source:'WhatsApp',
+    status:'New',
+    buyDate:'',
+    assignee:currentUser?currentUser.id:'',
+    value:0,
+    notes:message||'',
+    timeline:['Lead added — Auto-created from WhatsApp'],
+    chatLog:[],
+    createdAt:new Date().toISOString()
+  };
+
+  if(message)lead.chatLog.push({type:'in',content:message,ts:new Date().toISOString()});
+
+  dbInsertLead(lead);
+  toast('New lead from WhatsApp: '+lead.name,'#22c87a');
+  render();
+  return lead;
+}
+
+/* Demo/testing entry point — simulates an incoming WhatsApp message.
+   Wire a real WhatsApp Business API / Twilio webhook to POST to your
+   backend, which then calls createLeadFromWhatsApp() with the
+   sender's phone, message text, and (optionally) profile name. */
+function simulateWhatsAppLead(){
+  const phone='+91 9'+Math.floor(100000000+Math.random()*899999999);
+  createLeadFromWhatsApp(phone,'Hi, need drone details','New WhatsApp Contact');
 }
 
 /* ── LEADS CRUD ──────────────────────────────────────────── */
@@ -2671,6 +2828,7 @@ document.addEventListener('DOMContentLoaded',function(){
           $('app').style.display='flex';
           updateSidebarUser();render();
           checkMissedReminders();
+          subscribeRealtimeLeads();
           setInterval(checkMissedReminders,5*60*1000);
           initMobileLayout();
           return;
