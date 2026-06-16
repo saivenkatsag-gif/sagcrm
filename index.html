@@ -1558,6 +1558,14 @@ function renderDash(){
 }
 
 /* ── LEADS LIST ──────────────────────────────────────────── */
+function handleLeadSearchInput(el){
+  searchQ=el.value;
+  const pos=el.selectionStart;
+  render();
+  const ne=$('lead-search-input');
+  if(ne){ne.focus();ne.setSelectionRange(pos,pos);}
+}
+
 function renderLeads(){
   let vl=visibleLeads();
   if(searchQ)vl=vl.filter(l=>l.name.toLowerCase().includes(searchQ)||l.phone.includes(searchQ)||(l.email||'').toLowerCase().includes(searchQ)||(l.product||'').toLowerCase().includes(searchQ)||(l.branch||'').toLowerCase().includes(searchQ));
@@ -1588,7 +1596,7 @@ function renderLeads(){
 
   return`
 <div class="filters-bar">
-  <div class="search-wrap" style="flex:2;max-width:none"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg><input class="search-input" placeholder="Search leads…" value="${searchQ}" oninput="searchQ=this.value;render()"/></div>
+  <div class="search-wrap" style="flex:2;max-width:none"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg><input class="search-input" id="lead-search-input" placeholder="Search leads…" value="${searchQ}" oninput="handleLeadSearchInput(this)"/></div>
   <span style="font-size:11px;color:var(--text3);font-weight:600">Status:</span>
   <select class="fi" style="width:auto;padding:6px 28px 6px 10px;font-size:12px" onchange="statusFilter=this.value;render()">
     <option value="all" ${statusFilter==='all'?'selected':''}>All Statuses</option>
