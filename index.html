@@ -266,9 +266,10 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
 .empty-text{font-size:13px;color:var(--text2)}
 .empty-sub{font-size:11px;color:var(--text3);margin-top:3px}
 .toast-wrap{position:fixed;bottom:22px;right:22px;z-index:2000;display:flex;flex-direction:column;gap:7px}
-.toast{background:#0f172a;border:1px solid #1e293b;border-radius:var(--radius);padding:11px 14px;font-size:12px;color:#f1f5f9;display:flex;align-items:center;gap:9px;box-shadow:0 4px 20px rgba(0,0,0,.22);animation:toastIn .22s ease;min-width:240px}
+.toast{background:#0f172a;border:1px solid #1e293b;border-radius:var(--radius);padding:11px 14px;font-size:12px;color:#f1f5f9;display:flex;align-items:flex-start;gap:9px;box-shadow:0 4px 20px rgba(0,0,0,.22);animation:toastIn .22s ease;min-width:240px;max-width:min(420px,calc(100vw - 44px));line-height:1.5}
+.toast span{word-break:break-word}
+.toast-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
 @keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
-.toast-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .info-banner{display:flex;align-items:flex-start;gap:9px;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.14);border-radius:var(--radius);padding:11px 13px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.6}
 .info-banner svg{flex-shrink:0;margin-top:1px;color:var(--accent2)}
 .locked-notice{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text3);padding:14px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border)}
@@ -659,6 +660,22 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<div class="modal-backdrop" id="followup-done-modal" onclick="backdropClose(event,'followup-done-modal')">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <div><div class="modal-title">Mark Follow-up Done</div><div class="modal-sub" id="followup-done-modal-sub">For this lead</div></div>
+      <button class="modal-close" onclick="closeModal('followup-done-modal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="fg full"><label class="fl">What happened? (logged to lead chat)</label><textarea class="fi" id="fu-done-comment" rows="3" placeholder="e.g. Spoke to customer, they need 2 more days to decide…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('followup-done-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFollowUpDone()">Mark Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- IMPORT CONFIRM MODAL -->
 <div class="modal-backdrop" id="import-confirm-modal" onclick="backdropClose(event,'import-confirm-modal')">
   <div class="modal modal-lg">
@@ -728,7 +745,7 @@ const BGCOLOR = ['rgba(37,99,235,.1)','rgba(245,158,11,.1)','rgba(22,163,74,.1)'
 
 /* ── State ──────────────────────────────────────────────── */
 let leads=[], team=[], branches=[], reminders=[], pointsLog=[];
-let currentUser=null, editLeadId=null, editMemberId=null, reminderLeadId=null;
+let currentUser=null, editLeadId=null, editMemberId=null, reminderLeadId=null, followUpDoneLeadId=null;
 let currentView='dashboard', statusFilter='all', searchQ='', branchFilter='all', categoryFilter='all', stateFilter='all', languageFilter='all';
 const CATEGORIES=['Drones','Spares','RPTO','B2B','Loans'];
 const STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Jammu & Kashmir'];
@@ -746,6 +763,7 @@ function lsLoadLeads(){try{const d=localStorage.getItem('lf_leads');return d?JSO
 const $=id=>document.getElementById(id);
 const d0=(n=0)=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
 const fmtDate=s=>s?new Date(s).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'—';
+const fmtDateTime=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+', '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});};
 const numFmt=n=>Number(n).toLocaleString('en-IN');
 const initials=n=>(n||'?').split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);
 const uid=()=>'id'+Date.now()+Math.random().toString(36).slice(2,7);
@@ -873,6 +891,31 @@ function dismissReminder(id){
   render();
 }
 
+/* ── Follow-up Alert → Mark Done (with comment logged to lead chat) ── */
+function openFollowUpDoneModal(leadId){
+  followUpDoneLeadId=leadId;
+  const lead=leads.find(l=>l.id===leadId);
+  $('followup-done-modal-sub').textContent=lead?'For: '+lead.name:'For this lead';
+  $('fu-done-comment').value='';
+  openModal('followup-done-modal');
+}
+
+function saveFollowUpDone(){
+  const lead=leads.find(l=>l.id===followUpDoneLeadId);
+  if(!lead){closeModal('followup-done-modal');return;}
+  const comment=$('fu-done-comment').value.trim();
+  if(!comment){toast('Please add a quick note about this follow-up','#f59e0b');return;}
+  /* Mark this follow-up cycle as resolved for the lead's current buy date.
+     If the buy date is later changed (new follow-up scheduled), the alert
+     will naturally reappear since it's tied to the date that was resolved. */
+  lead.followUpDoneFor=lead.buyDate;
+  if(!lead.timeline)lead.timeline=[];
+  lead.timeline.push('Follow-up completed — '+comment);
+  addChatMessage(lead.id,'reminder','✅ Follow-up marked done: '+comment);
+  closeModal('followup-done-modal');
+  toast('Follow-up marked done ✓','#22c87a');
+}
+
 /* Check if any reminder was missed (not attended) → -1 point */
 function checkMissedReminders(){
   if(!currentUser)return;
@@ -966,11 +1009,13 @@ function dbToLead(r){
     id:r.id,name:r.name||'',email:r.email||'',phone:r.phone||'',
     address:r.address||'',pincode:r.pincode||'',
     source:r.source||'Others',status:r.status||'New',
-    product:r.product||'',branch:r.branch||'',
+    product:r.product||'',products:r.products||[],branch:r.branch||'',
+    category:r.category||'',state:r.state||'',language:r.language||'',
     buyDate:r.buy_date||'',assignee:r.assignee||'',
     value:r.value||0,notes:r.notes||'',
     timeline:r.timeline||[],
     chatLog:r.chat_log||[],
+    followUpDoneFor:r.follow_up_done_for||'',
     createdAt:r.created_at||new Date().toISOString()
   };
 }
@@ -979,11 +1024,13 @@ function leadToDb(l){
     id:l.id,name:l.name,email:l.email||null,phone:l.phone||null,
     address:l.address||null,pincode:l.pincode||null,
     source:l.source||'Others',status:l.status||'New',
-    product:l.product||null,branch:l.branch||null,
+    product:l.product||null,products:l.products||[],branch:l.branch||null,
+    category:l.category||null,state:l.state||null,language:l.language||null,
     buy_date:l.buyDate||null,assignee:l.assignee||null,
     value:Number(l.value)||0,notes:l.notes||null,
     timeline:l.timeline||[],
     chat_log:l.chatLog||[],
+    follow_up_done_for:l.followUpDoneFor||null,
     created_at:l.createdAt||new Date().toISOString()
   };
 }
@@ -1585,6 +1632,7 @@ function renderLeads(){
       <td>${l.branch||'—'}</td>
       <td><div class="${dateClass(l.buyDate)}" style="font-size:11.5px">${dateLabel(l.buyDate)}</div></td>
       <td style="font-family:var(--mono);font-size:11.5px">${l.value?'₹'+numFmt(l.value):'—'}</td>
+      <td style="font-size:11px;color:var(--text3);white-space:nowrap">${fmtDateTime(l.createdAt)}</td>
       <td>
         <div class="row-actions">
           <button class="act-btn" onclick="event.stopPropagation();openEditLead('${l.id}')">Edit</button>
@@ -1631,8 +1679,8 @@ function renderLeads(){
 </div>
 <div class="panel table-wrap">
   <table class="leads-table">
-    <thead><tr><th>Name</th><th>Status</th><th>Product</th><th>Source</th><th>Branch</th><th>Close Date</th><th>Value</th><th></th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3)">🚀 Start building your pipeline</br> Add your first lead to begin tracking opportunities.</td></tr>'}</tbody>
+    <thead><tr><th>Name</th><th>Status</th><th>Product</th><th>Source</th><th>Branch</th><th>Close Date</th><th>Value</th><th>Added</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text3)">🚀 Start building your pipeline</br> Add your first lead to begin tracking opportunities.</td></tr>'}</tbody>
   </table>
 </div>
 ${renderMobileLeadCards(vl)}
@@ -1656,6 +1704,7 @@ function renderMobileLeadCards(vl){
           <button class="act-btn" style="opacity:1" onclick="openReminderModal('${l.id}')">⏰</button>
         </div>
       </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:7px">Added ${fmtDateTime(l.createdAt)}</div>
     </div>`).join('')}</div>`;
 }
 
@@ -1747,6 +1796,7 @@ function buildDetailHTML(l){
     <div class="dp-row"><span class="dp-key">Close Date</span><span class="dp-val ${dateClass(l.buyDate)}">${dateLabel(l.buyDate)}</span></div>
     <div class="dp-row"><span class="dp-key">Value</span><span class="dp-val" style="font-family:var(--mono)">${l.value?'₹'+numFmt(l.value):'—'}</span></div>
     <div class="dp-row"><span class="dp-key">Assignee</span><span class="dp-val">${memberName(l.assignee)}</span></div>
+    <div class="dp-row"><span class="dp-key">Added On</span><span class="dp-val" style="font-family:var(--mono);font-size:11.5px">${fmtDateTime(l.createdAt)}</span></div>
   </div>
 
   <div class="dp-section">
@@ -2151,7 +2201,10 @@ async function saveLead(){
     if(prevStatus!==newStatus) l.timeline.push('Status → '+newStatus);
     /* Save localStorage first, then Supabase in background */
     lsSaveLeads();
-    sbFetch('/leads?id=eq.'+l.id,{method:'PATCH',body:JSON.stringify(leadToDb(l))}).catch(()=>{});
+    sbFetch('/leads?id=eq.'+l.id,{method:'PATCH',body:JSON.stringify(leadToDb(l))}).catch(e=>{
+      console.error('Cloud save failed for lead',l.id,e.message);
+      toast('⚠️ Cloud sync failed: '+sbErrorMessage(e),'#dc2626',7000);
+    });
     /* Award points if just Won */
     if(prevStatus!=='Won'&&newStatus==='Won'&&newValue>0){
       const pts=calcPointsForBill(newValue);
@@ -2175,7 +2228,10 @@ async function saveLead(){
     leads.unshift(l);
     /* Save localStorage first, then Supabase in background */
     lsSaveLeads();
-    sbFetch('/leads',{method:'POST',body:JSON.stringify(leadToDb(l)),headers:{'Prefer':'resolution=ignore-duplicates'}}).catch(()=>{});
+    sbFetch('/leads',{method:'POST',body:JSON.stringify(leadToDb(l)),headers:{'Prefer':'resolution=ignore-duplicates'}}).catch(e=>{
+      console.error('Cloud save failed for new lead',l.id,e.message);
+      toast('⚠️ Cloud sync failed: '+sbErrorMessage(e),'#dc2626',7000);
+    });
     if(newStatus==='Won'&&newValue>0){
       const pts=calcPointsForBill(newValue);
       addPointsEntry(l.assignee,pts,'Deal Won: '+l.name+' ₹'+numFmt(newValue),l.id);
@@ -2392,7 +2448,7 @@ async function saveMember(){
 /* ── NOTIFICATIONS ───────────────────────────────────────── */
 function renderNotifs(){
   const vl=visibleLeads();
-  const hot=vl.filter(l=>{const d=daysTo(l.buyDate);return d!==null&&d<=3&&l.status!=='Won'&&l.status!=='Lost';}).sort((a,b)=>daysTo(a.buyDate)-daysTo(b.buyDate));
+  const hot=vl.filter(l=>{const d=daysTo(l.buyDate);return d!==null&&d<=3&&l.status!=='Won'&&l.status!=='Lost'&&l.followUpDoneFor!==l.buyDate;}).sort((a,b)=>daysTo(a.buyDate)-daysTo(b.buyDate));
   const my=reminders.filter(r=>r.userId===currentUser.id).sort((a,b)=>new Date(a.datetime)-new Date(b.datetime));
 
   const followUps=hot.map(l=>{
@@ -2404,7 +2460,8 @@ function renderNotifs(){
         <div class="notif-title">${l.name}</div>
         <div class="notif-meta">${l.product||'—'} · ${l.branch||'—'} · ${memberName(l.assignee)}</div>
       </div>
-      <div class="${dateClass(l.buyDate)}" style="font-size:11.5px;font-weight:600;white-space:nowrap">${dateLabel(l.buyDate)}</div>
+      <div class="${dateClass(l.buyDate)}" style="font-size:11.5px;font-weight:600;white-space:nowrap;margin-right:6px">${dateLabel(l.buyDate)}</div>
+      <button class="act-btn" onclick="openFollowUpDoneModal('${l.id}');event.stopPropagation()">Mark Done</button>
     </div>`;
   }).join('');
 
@@ -2519,6 +2576,11 @@ alter table leads add column if not exists address text;
 alter table leads add column if not exists pincode text;
 alter table leads add column if not exists branch text;
 alter table leads add column if not exists chat_log jsonb default '[]';
+alter table leads add column if not exists follow_up_done_for text;
+alter table leads add column if not exists category text;
+alter table leads add column if not exists state text;
+alter table leads add column if not exists language text;
+alter table leads add column if not exists products jsonb default '[]';
 
 -- Add missing column to team_members
 alter table team_members add column if not exists branch text;
@@ -2675,6 +2737,11 @@ alter table leads add column if not exists address text;
 alter table leads add column if not exists pincode text;
 alter table leads add column if not exists branch text;
 alter table leads add column if not exists chat_log jsonb default '[]';
+alter table leads add column if not exists follow_up_done_for text;
+alter table leads add column if not exists category text;
+alter table leads add column if not exists state text;
+alter table leads add column if not exists language text;
+alter table leads add column if not exists products jsonb default '[]';
 
 -- Add missing columns to team_members table
 alter table team_members add column if not exists branch text;
@@ -2712,11 +2779,22 @@ function closeModal(id){$(id).classList.remove('open');}
 function backdropClose(e,id){if(e.target.id===id)closeModal(id);}
 
 /* ── Toast ───────────────────────────────────────────────── */
-function toast(msg,color='#2563eb'){
+function toast(msg,color='#2563eb',duration=2800){
   const el=document.createElement('div');el.className='toast';
   el.innerHTML=`<div class="toast-dot" style="background:${color}"></div><span>${msg}</span>`;
   $('toast-wrap').appendChild(el);
-  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(8px)';el.style.transition='all .2s';setTimeout(()=>el.remove(),200);},2800);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(8px)';el.style.transition='all .2s';setTimeout(()=>el.remove(),200);},duration);
+}
+
+/* Extract a readable message out of a Supabase/PostgREST error.
+   The raw error text is usually JSON like:
+   {"code":"42703","message":"column \"category\" of relation \"leads\" does not exist", ...} */
+function sbErrorMessage(e){
+  const raw=(e&&e.message)||String(e);
+  try{
+    const j=JSON.parse(raw);
+    return j.message||j.hint||j.details||raw;
+  }catch(_){return raw;}
 }
 
 /* ── Mobile helpers ──────────────────────────────────────── */
@@ -2759,7 +2837,7 @@ document.addEventListener('click',e=>{
     if(ov&&ov.classList.contains('open')){if(typeof closeMobileSidebar==='function')closeMobileSidebar();pushBack();return true;}
 
     /* Priority 2: open modal */
-    const modals=['lead-modal','member-modal','reminder-modal','import-confirm-modal'];
+    const modals=['lead-modal','member-modal','reminder-modal','followup-done-modal','import-confirm-modal'];
     const openMod=modals.find(id=>{const el=document.getElementById(id);return el&&el.classList.contains('open');});
     if(openMod){closeModal(openMod);pushBack();return true;}
 
@@ -2809,7 +2887,7 @@ document.addEventListener('DOMContentLoaded',function(){
   document.head.appendChild(style);
   document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.view)));
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){['lead-modal','member-modal','reminder-modal','import-confirm-modal'].forEach(closeModal);closeDetailPanel();$('reminder-dropdown')?.classList.remove('open');}
+    if(e.key==='Escape'){['lead-modal','member-modal','reminder-modal','followup-done-modal','import-confirm-modal'].forEach(closeModal);closeDetailPanel();$('reminder-dropdown')?.classList.remove('open');}
     if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openAddLead();}
   });
   loadPointsLog();
