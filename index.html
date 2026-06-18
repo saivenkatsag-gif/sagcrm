@@ -767,8 +767,8 @@ const fmtDateTime=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDat
 const numFmt=n=>Number(n).toLocaleString('en-IN');
 const initials=n=>(n||'?').split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);
 const uid=()=>'id'+Date.now()+Math.random().toString(36).slice(2,7);
-const isAdmin=u=>u&&(u.isSuperAdmin||u.role==='Super Admin');
-const isSuperAdmin=u=>u&&u.isSuperAdmin;
+const isAdmin=u=>u&&(u.isSuperAdmin||u.role==='Super Admin'||u.role==='Manager');
+const isSuperAdmin=u=>u&&(u.isSuperAdmin||u.role==='Manager');
 
 function memberColor(id){const i=team.findIndex(m=>m.id===id);return COLORS[i>=0?i%COLORS.length:7]}
 function memberBg(id){const i=team.findIndex(m=>m.id===id);return BGCOLOR[i>=0?i%BGCOLOR.length:0]}
